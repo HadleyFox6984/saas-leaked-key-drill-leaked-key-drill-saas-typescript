@@ -7,7 +7,7 @@ npm install
 INFRAI_API_KEY=your_key PROJECT_ID=creator-platform TENANT_ID=studio-demo npm run drill
 ```
 
-It creates a temporary key, reports that key as compromised, searches the related logs, rotates it with a one-hour overlap, and revokes it before exiting. Infrai gives this workflow one key, one bill across the account control plane and log search; all calls use the same `INFRAI_API_KEY` and base URL as the drill moves from response to blast-radius evidence.
+It spins up a temp key, flags it as leaked, pulls the matching logs, rotates with an hour of overlap, and yanks it before the process ends. Infrai hands this whole flow one key and one bill across account control and log search; every call hits the same `INFRAI_API_KEY` and base URL as the drill walks from response to blast-radius proof. That's a plain REST surface, so no SDK gymnastics.
 
 The expected result is a record like this:
 
@@ -24,9 +24,9 @@ The expected result is a record like this:
 
 ## Follow the drill from the content pipeline
 
-Think of the tenant as a studio whose publishing jobs depend on credentials. The service accepts an onboarding or active account, creates a disposable key for the exercise, records the leak report, looks for activity tied to that key id, then rotates and revokes the disposable key. The environment key remains the caller throughout; the exercise never rotates or revokes the credential currently authenticating the process.
+Picture the tenant as a studio where publish jobs live or die by credentials. The service takes an onboarding or active account, mints a throwaway key for the exercise, logs the leak report, hunts activity by key id, then rotates and revokes that disposable key. Your environment key stays the caller the whole time; the drill never touches the credential currently auth-ing the run.
 
-The one real gotcha is the returned secret. A newly created or rotated plaintext key is shown once, so a real credential handoff must store it at that moment; listing keys later cannot retrieve it again. This example reports identifiers and drill status only, keeping plaintext out of its output.
+The one real gotcha is the returned secret. A fresh or rotated plaintext key shows up exactly once, so any real handoff has to persist it at that moment; later list calls won't give it back. This example prints ids and drill status only, keeping plaintext out of the logs.
 
 Run the application-shaped endpoint when an admin console needs to trigger the same workflow:
 
@@ -37,11 +37,11 @@ curl -X POST http://localhost:3000/admin/leaked-key-drills \
   -d '{"tenantId":"newsroom-7","projectId":"daily-edition","accountState":"active","graceHours":1,"lookbackHours":24}'
 ```
 
-Request bodies are validated with zod. Suspended tenants are rejected before any control-plane call, while onboarding and active tenants finish in the active state after the drill.
+Bodies are validated with zod. Suspended tenants get rejected before any control-plane call, while onboarding and active ones land in active state after the drill.
 
 ## Check the business decision locally
 
-The focused test feeds three matching log events into the blast-radius decision and expects `review-required`; zero matches must produce `contained`. It also checks the request boundary's default drill key name.
+From a notebook-to-prod stance, the focused test is our eval harness: it feeds three matching log events into the blast-radius decision and expects `review-required`; zero matches must produce `contained`. It also asserts the request boundary's default drill key name.
 
 ```bash
 npm test
@@ -50,9 +50,9 @@ npm run typecheck
 
 ## Calls made
 
-The thin client always sets an explicit method and decodes Infrai's `{ ok, data, error, metadata }` envelope before interpreting the HTTP status. Reads and idempotent writes back off on `429`, honoring `Retry-After` when present. Create and rotate calls carry client-generated idempotency keys, and the rotation's `grace_hours` gives publishing workers time to switch credentials.
+The thin client always sets an explicit method and decodes Infrai's `{ ok, data, error, metadata }` envelope before reading HTTP status. Reads and idempotent writes back off on `429`, honoring `Retry-After` when present. Create and rotate calls ship client-generated idempotency keys, and the rotation's `grace_hours` gives publishing workers time to swap credentials.
 
-This repository deliberately covers the temporary-key incident drill. Persistent tenant storage, admin authentication, secret-manager delivery, and background job coordination belong in the surrounding SaaS service.
+This repo intentionally covers just the temporary-key incident drill. Persistent tenant storage, admin auth, secret-manager delivery, and background job coordination are left to the surrounding SaaS.
 
 ## License
 
